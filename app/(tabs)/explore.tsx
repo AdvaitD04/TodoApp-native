@@ -1,20 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, Platform } from 'react-native';
 import { FAB } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { Event } from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Define types for a Task
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  done: boolean;
+}
 
 export default function TaskApp() {
-  const [tasks, setTasks] = useState([]);
-  const [isDialogVisible, setDialogVisible] = useState(false);
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskDescription, setTaskDescription] = useState('');
-  const [taskDate, setTaskDate] = useState(new Date());
-  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]); // State for tasks, type it as an array of Task
+  const [isDialogVisible, setDialogVisible] = useState<boolean>(false); // State for dialog visibility
+  const [taskTitle, setTaskTitle] = useState<string>(''); // State for task title
+  const [taskDescription, setTaskDescription] = useState<string>(''); // State for task description
+  const [taskDate, setTaskDate] = useState<Date>(new Date()); // State for task date
+  const [isDatePickerVisible, setDatePickerVisible] = useState<boolean>(false); // State for date picker visibility
+
+  // Load tasks from AsyncStorage when the app starts
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const savedTasks = await AsyncStorage.getItem('tasks');
+        if (savedTasks) {
+          setTasks(JSON.parse(savedTasks)); // Parse and set tasks from storage
+        }
+      } catch (error) {
+        console.error('Error loading tasks:', error);
+      }
+    };
+    loadTasks();
+  }, []);
+
+  // Save tasks to AsyncStorage whenever the tasks change
+  useEffect(() => {
+    const saveTasks = async () => {
+      try {
+        await AsyncStorage.setItem('tasks', JSON.stringify(tasks)); // Save tasks as a string
+      } catch (error) {
+        console.error('Error saving tasks:', error);
+      }
+    };
+    if (tasks.length > 0) {
+      saveTasks();
+    }
+  }, [tasks]);
 
   const addTask = () => {
     if (taskTitle && taskDescription && taskDate) {
-      const newTask = {
+      const newTask: Task = {
         id: Date.now().toString(),
         title: taskTitle,
         description: taskDescription,
@@ -29,11 +68,11 @@ export default function TaskApp() {
     }
   };
 
-  const deleteTask = (id) => {
+  const deleteTask = (id: string) => {
     setTasks(tasks.filter(task => task.id !== id));
   };
 
-  const toggleTaskDone = (id) => {
+  const toggleTaskDone = (id: string) => {
     setTasks(tasks.map(task =>
       task.id === id ? { ...task, done: !task.done } : task
     ));
@@ -43,7 +82,7 @@ export default function TaskApp() {
     setDatePickerVisible(true);
   };
 
-  const onDateChange = (event, selectedDate) => {
+  const onDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || taskDate;
     setDatePickerVisible(Platform.OS === 'ios' ? true : false); // iOS doesn't close by default
     setTaskDate(currentDate);
@@ -51,7 +90,7 @@ export default function TaskApp() {
 
   return (
     <View className="flex-1 bg-gray-100">
-      <Text className="text-xl font-bold text-blue-600 mt-4 mb-2 pt-6 text-center">TaskApp</Text>
+      <Text className="text-2xl font-bold text-blue-600 mt-4 mb-2 pt-6 text-center">TaskApp</Text>
 
       <FlatList
         data={tasks}
@@ -69,18 +108,18 @@ export default function TaskApp() {
               {item.description}
             </Text>
             <Text className="text-sm text-gray-500">{item.date}</Text>
+           
+            <View className='flex flex-row justify-between pt-2'>
+              {/* Toggle Task Done */}
+              <TouchableOpacity onPress={() => toggleTaskDone(item.id)} className=" mt-2">
+                <Ionicons name={item.done ? "checkmark-circle" : "ellipse-outline"} size={24} color={item.done ? "green" : "gray"} />
+              </TouchableOpacity>
 
-            {/* Toggle Task Done */}
-            <View className='flex flex-row justify-between mt-3'>
-            <TouchableOpacity onPress={() => toggleTaskDone(item.id)} className=" mt-2">
-              <Ionicons name={item.done ? "checkmark-circle" : "ellipse-outline"} size={24} color={item.done ? "green" : "gray"} />
-            </TouchableOpacity>
-
-            {/* Delete Task */}
-            <TouchableOpacity onPress={() => deleteTask(item.id)} className=" mt-2">
-              <Ionicons name="trash-bin-outline" size={24} color="red" />
-            </TouchableOpacity>
-          </View>
+              {/* Delete Task */}
+              <TouchableOpacity onPress={() => deleteTask(item.id)} className=" mt-2">
+                <Ionicons name="trash-bin-outline" size={24} color="red" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       />
@@ -96,8 +135,8 @@ export default function TaskApp() {
       {isDialogVisible && (
         <View className="absolute bottom-16 left-4 right-4 p-4 bg-white rounded-lg shadow-lg">
           <View className='flex flex-row  justify-between'>
-          <Text className="text-lg font-bold mb-2">Add New Note</Text>
-          <Text className="text-lg text-red-400" onPress={() => setDialogVisible(false)}>Back</Text>
+            <Text className="text-lg font-bold mb-2 ">Add New Task</Text>
+            <Text className="text-lg text-red-600" onPress={() => setDialogVisible(false)}>Back</Text>
           </View>
           <TextInput
             placeholder="Task Title"
